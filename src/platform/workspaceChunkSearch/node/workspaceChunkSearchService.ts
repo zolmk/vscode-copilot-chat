@@ -34,7 +34,6 @@ import { IExperimentationService } from '../../telemetry/common/nullExperimentat
 import { ITelemetryService } from '../../telemetry/common/telemetry';
 import { getWorkspaceFileDisplayPath, IWorkspaceService } from '../../workspace/common/workspaceService';
 import { GithubAvailableEmbeddingTypesManager } from '../common/githubAvailableEmbeddingTypes';
-import { GithubEmbeddingsComputer } from '../common/githubEmbeddingsComputer';
 import { IWorkspaceChunkSearchStrategy, StrategySearchResult, StrategySearchSizing, WorkspaceChunkQuery, WorkspaceChunkQueryWithEmbeddings, WorkspaceChunkSearchOptions, WorkspaceChunkSearchStrategyId, WorkspaceSearchAlert } from '../common/workspaceChunkSearch';
 import { CodeSearchChunkSearch, CodeSearchRemoteIndexState } from './codeSearchChunkSearch';
 import { EmbeddingsChunkSearch, LocalEmbeddingsIndexState, LocalEmbeddingsIndexStatus } from './embeddingsChunkSearch';
@@ -207,7 +206,6 @@ class WorkspaceChunkSearchServiceImpl extends Disposable implements IWorkspaceCh
 
 	private readonly shouldEagerlyIndexKey = 'workspaceChunkSearch.shouldEagerlyIndex';
 
-	private readonly _embeddingsComputer: IEmbeddingsComputer;
 	private readonly _embeddingsIndex: WorkspaceChunkEmbeddingsIndex;
 
 	private readonly _embeddingsChunkSearch: EmbeddingsChunkSearch;
@@ -225,6 +223,7 @@ class WorkspaceChunkSearchServiceImpl extends Disposable implements IWorkspaceCh
 		private readonly _embeddingType: EmbeddingType,
 		@IInstantiationService instantiationService: IInstantiationService,
 		@IAuthenticationChatUpgradeService private readonly _authUpgradeService: IAuthenticationChatUpgradeService,
+		@IEmbeddingsComputer private readonly _embeddingsComputer: IEmbeddingsComputer,
 		@IExperimentationService private readonly _experimentationService: IExperimentationService,
 		@IIgnoreService private readonly _ignoreService: IIgnoreService,
 		@ILogService private readonly _logService: ILogService,
@@ -236,7 +235,6 @@ class WorkspaceChunkSearchServiceImpl extends Disposable implements IWorkspaceCh
 	) {
 		super();
 
-		this._embeddingsComputer = instantiationService.createInstance(GithubEmbeddingsComputer);
 		this._embeddingsIndex = instantiationService.createInstance(WorkspaceChunkEmbeddingsIndex, this._embeddingType);
 
 		this._embeddingsChunkSearch = this._register(instantiationService.createInstance(EmbeddingsChunkSearch, this._embeddingsIndex));
@@ -639,7 +637,7 @@ class WorkspaceChunkSearchServiceImpl extends Disposable implements IWorkspaceCh
 		})));
 	}
 
-	@LogExecTime(self => self._logService, 'WorkspaceChunkSearch.rerankResultIfNeeded')
+	@LogExecTime(self => self._logService, 'WorkspaceChunkSearch::rerankResultIfNeeded')
 	private async rerankResultIfNeeded(query: WorkspaceChunkQueryWithEmbeddings, result: StrategySearchOk, maxResults: number, telemetryInfo: TelemetryCorrelationId, progress: vscode.Progress<vscode.ChatResponsePart> | undefined, token: CancellationToken): Promise<WorkspaceChunkSearchResult> {
 		// If we have full workspace results, use those directly without re-ranking
 		if (result.strategy === WorkspaceChunkSearchStrategyId.FullWorkspace) {
@@ -662,7 +660,7 @@ class WorkspaceChunkSearchServiceImpl extends Disposable implements IWorkspaceCh
 		};
 	}
 
-	@LogExecTime(self => self._logService, 'WorkspaceChunkSearch.rerankChunks')
+	@LogExecTime(self => self._logService, 'WorkspaceChunkSearch::rerankChunks')
 	private async rerankChunks(query: WorkspaceChunkQueryWithEmbeddings, inChunks: readonly FileChunkAndScore[], maxResults: number, telemetryInfo: TelemetryCorrelationId, progress: vscode.Progress<vscode.ChatResponsePart> | undefined, token: CancellationToken): Promise<FileChunkAndScore[]> {
 		if (!inChunks.length) {
 			return [];

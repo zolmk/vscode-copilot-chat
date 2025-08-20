@@ -31,6 +31,7 @@ import { GlobalContextMessageMetadata, RenderedUserMessageMetadata, Turn } from 
 import { InternalToolReference } from '../../../prompt/common/intents';
 import { IPromptVariablesService } from '../../../prompt/node/promptVariablesService';
 import { ToolName } from '../../../tools/common/toolNames';
+import { TodoListContextPrompt } from '../../../tools/node/todoListContextPrompt';
 import { CopilotIdentityRules, GPT5CopilotIdentityRule } from '../base/copilotIdentity';
 import { IPromptEndpoint, renderPromptElement } from '../base/promptRenderer';
 import { Gpt5SafetyRule, SafetyRules } from '../base/safetyRules';
@@ -349,6 +350,7 @@ export class AgentUserMessage extends PromptElement<AgentUserMessageProps> {
 						<EditedFileEvents editedFileEvents={this.props.editedFileEvents} />
 						<NotebookSummaryChange />
 						{hasTerminalTool && <TerminalAndTaskStatePromptElement sessionId={this.props.sessionId} />}
+						{hasTodoTool && <TodoListContextPrompt sessionId={this.props.sessionId} />}
 					</Tag>
 					<CurrentEditorContext endpoint={this.props.endpoint} />
 					<RepoContext />
@@ -630,7 +632,7 @@ class AgentTasksInstructions extends PromptElement {
 					{tasks.map((t, i) => {
 						const isActive = this._tasksService.isTaskActive(t);
 						return (
-							<Tag name='task' attrs={{ id: `${t.type}: ${t.label || i}` }}>
+							<Tag name='task' attrs={{ id: t.type ? `${t.type}: ${t.label || i}` : `${t.label || i}` }}>
 								{this.makeTaskPresentation(t)}
 								{isActive && <> (This task is currently running. You can use the {ToolName.CoreGetTaskOutput} or {ToolName.GetTaskOutput} tool to view its output.)</>}
 							</Tag>
@@ -744,7 +746,7 @@ export class KeepGoingReminder extends PromptElement<IKeepGoingReminderProps> {
 function getExplanationReminder(modelFamily: string | undefined, hasTodoTool?: boolean) {
 	return modelFamily?.startsWith('gpt-5') === true ?
 		<>
-			Skip filler acknowledgements like “Sounds good” or “Okay, I will…”. Open with a purposeful one-liner about what you're doing next.<br />
+			Skip filler acknowledgements like "Sounds good" or "Okay, I will…". Open with a purposeful one-liner about what you're doing next.<br />
 			When sharing setup or run steps, present terminal commands in fenced code blocks with the correct language tag. Keep commands copyable and on separate lines.<br />
 			Avoid definitive claims about the build or runtime setup unless verified from the provided context (or quick tool checks). If uncertain, state what's known from attachments and proceed with minimal steps you can adapt later.<br />
 			When you create or edit runnable code, run a test yourself to confirm it works; then share optional fenced commands for more advanced runs.<br />

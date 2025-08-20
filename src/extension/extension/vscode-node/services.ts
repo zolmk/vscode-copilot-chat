@@ -6,7 +6,8 @@
 import { ExtensionContext, ExtensionMode } from 'vscode';
 import { IAuthenticationService } from '../../../platform/authentication/common/authentication';
 import { ICopilotTokenManager } from '../../../platform/authentication/common/copilotTokenManager';
-import { getOrCreateTestingCopilotTokenManager } from '../../../platform/authentication/node/copilotTokenManager';
+import { StaticGitHubAuthenticationService } from '../../../platform/authentication/common/staticGitHubAuthenticationService';
+import { getOrCreateTestingCopilotTokenManager, getStaticGitHubToken } from '../../../platform/authentication/node/copilotTokenManager';
 import { AuthenticationService } from '../../../platform/authentication/vscode-node/authenticationService';
 import { VSCodeCopilotTokenManager } from '../../../platform/authentication/vscode-node/copilotTokenManager';
 import { IChatAgentService } from '../../../platform/chat/common/chatAgents';
@@ -22,6 +23,7 @@ import { IDomainService } from '../../../platform/endpoint/common/domainService'
 import { IEndpointProvider } from '../../../platform/endpoint/common/endpointProvider';
 import { CAPIClientImpl } from '../../../platform/endpoint/node/capiClientImpl';
 import { DomainService } from '../../../platform/endpoint/node/domainServiceImpl';
+import { isScenarioAutomation } from '../../../platform/env/common/envService';
 import { IGitCommitMessageService } from '../../../platform/git/common/gitCommitMessageService';
 import { IGitDiffService } from '../../../platform/git/common/gitDiffService';
 import { IGithubRepositoryService } from '../../../platform/github/common/githubService';
@@ -84,6 +86,7 @@ import { ILanguageToolsProvider, LanguageToolsProvider } from '../../onboardDebu
 import { ChatMLFetcherImpl } from '../../prompt/node/chatMLFetcher';
 import { IFeedbackReporter } from '../../prompt/node/feedbackReporter';
 import { IPromptVariablesService } from '../../prompt/node/promptVariablesService';
+import { ITodoListContextProvider, TodoListContextProvider } from '../../prompt/node/todoListContextProvider';
 import { DevContainerConfigurationServiceImpl } from '../../prompt/vscode-node/devContainerConfigurationServiceImpl';
 import { ProductionEndpointProvider } from '../../prompt/vscode-node/endpointProviderImpl';
 import { GitCommitMessageServiceImpl } from '../../prompt/vscode-node/gitCommitMessageServiceImpl';
@@ -129,7 +132,7 @@ export function registerServices(builder: IInstantiationServiceBuilder, extensio
 	const internalAIKey = extensionContext.extension.packageJSON.internalAIKey ?? '';
 	const internalLargeEventAIKey = extensionContext.extension.packageJSON.internalLargeStorageAriaKey ?? '';
 	const ariaKey = extensionContext.extension.packageJSON.ariaKey ?? '';
-	if (isTestMode) {
+	if (isTestMode || isScenarioAutomation) {
 		setupTelemetry(builder, extensionContext, internalAIKey, internalLargeEventAIKey, ariaKey);
 		// If we're in testing mode, then most code will be called from an actual test,
 		// and not from here. However, some objects will capture the `accessor` we pass
@@ -141,7 +144,12 @@ export function registerServices(builder: IInstantiationServiceBuilder, extensio
 		setupTelemetry(builder, extensionContext, internalAIKey, internalLargeEventAIKey, ariaKey);
 		builder.define(ICopilotTokenManager, new SyncDescriptor(VSCodeCopilotTokenManager));
 	}
-	builder.define(IAuthenticationService, new SyncDescriptor(AuthenticationService));
+
+	if (isScenarioAutomation) {
+		builder.define(IAuthenticationService, new SyncDescriptor(StaticGitHubAuthenticationService, [getStaticGitHubToken]));
+	} else {
+		builder.define(IAuthenticationService, new SyncDescriptor(AuthenticationService));
+	}
 
 	builder.define(ITestGenInfoStorage, new SyncDescriptor(TestGenInfoStorage)); // Used for test generation (/tests intent)
 	builder.define(IEndpointProvider, new SyncDescriptor(ProductionEndpointProvider, [collectFetcherTelemetry]));
@@ -188,10 +196,11 @@ export function registerServices(builder: IInstantiationServiceBuilder, extensio
 	builder.define(IWorkspaceListenerService, new SyncDescriptor(WorkspacListenerService));
 	builder.define(ICodeSearchAuthenticationService, new SyncDescriptor(VsCodeCodeSearchAuthenticationService));
 	builder.define(IThinkingDataService, new SyncDescriptor(ThinkingDataImpl));
+	builder.define(ITodoListContextProvider, new SyncDescriptor(TodoListContextProvider));
 }
 
 function setupMSFTExperimentationService(builder: IInstantiationServiceBuilder, extensionContext: ExtensionContext) {
-	if (ExtensionMode.Production === extensionContext.extensionMode) {
+	if (ExtensionMode.Production === extensionContext.extensionMode && !isScenarioAutomation) {
 		// Intitiate the experimentation service
 		builder.define(IExperimentationService, new SyncDescriptor(MicrosoftExperimentationService));
 	} else {
@@ -201,7 +210,7 @@ function setupMSFTExperimentationService(builder: IInstantiationServiceBuilder, 
 
 function setupTelemetry(builder: IInstantiationServiceBuilder, extensionContext: ExtensionContext, internalAIKey: string, internalLargeEventAIKey: string, externalAIKey: string) {
 
-	if (ExtensionMode.Production === extensionContext.extensionMode) {
+	if (ExtensionMode.Production === extensionContext.extensionMode && !isScenarioAutomation) {
 		builder.define(ITelemetryService, new SyncDescriptor(TelemetryService, [
 			extensionContext.extension.packageJSON.name,
 			internalAIKey,
