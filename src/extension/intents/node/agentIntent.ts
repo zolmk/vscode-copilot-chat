@@ -209,6 +209,7 @@ export class AgentIntentInvocation extends EditCodeIntentInvocation {
 		// Add any references from the codebase invocation to the request
 		const codebase = await this._getCodebaseReferences(promptContext, token);
 
+
 		let variables = promptContext.chatVariables;
 		let toolReferences: vscode.ChatPromptReference[] = [];
 		if (codebase) {
@@ -246,6 +247,7 @@ export class AgentIntentInvocation extends EditCodeIntentInvocation {
 			...this.extraPromptProps
 		};
 		try {
+			// [ ] 提示渲染器，PromptRender只是对提示词进行了剪枝，去掉了不重要的信息，从而保证提示词足够简洁
 			const renderer = PromptRenderer.create(this.instantiationService, endpoint, this.prompt, props);
 			result = await renderer.render(progress, token);
 		} catch (e) {

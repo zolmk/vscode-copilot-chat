@@ -181,7 +181,10 @@ export abstract class ToolCallingLoop<TOptions extends IToolCallingLoopOptions =
 			}
 
 			try {
+				// [ ] N
+				// 构建 prompt（经过了很多处理），发送请求给LLM，获得响应
 				const result = await this.runOne(outputStream, i, token);
+
 				if (lastRequestMessagesStartingIndexForRun === undefined) {
 					lastRequestMessagesStartingIndexForRun = result.lastRequestMessages.length - 1;
 				}
@@ -191,6 +194,8 @@ export abstract class ToolCallingLoop<TOptions extends IToolCallingLoopOptions =
 				};
 
 				this.toolCallRounds.push(result.round);
+
+				// 本轮工具调用集为空 或 响应没有最终完成
 				if (!result.round.toolCalls.length || result.response.type !== ChatFetchResponseType.Success) {
 					lastResult = lastResult;
 					break;
@@ -209,7 +214,9 @@ export abstract class ToolCallingLoop<TOptions extends IToolCallingLoopOptions =
 			this._logService.error('Error emitting read file trajectories', err);
 		});
 
+		// 过滤出所有的工具消息
 		const toolCallRoundsToDisplay = lastResult.lastRequestMessages.slice(lastRequestMessagesStartingIndexForRun ?? 0).filter((m): m is Raw.ToolChatMessage => m.role === Raw.ChatRole.Tool);
+		// 将所有的工具消息写入到 输出流 中
 		for (const toolRound of toolCallRoundsToDisplay) {
 			const result = this.toolCallResults[toolRound.toolCallId];
 			if (result instanceof LanguageModelToolResult2) {
@@ -221,6 +228,7 @@ export abstract class ToolCallingLoop<TOptions extends IToolCallingLoopOptions =
 				}
 			}
 		}
+
 		return { ...lastResult, toolCallRounds: this.toolCallRounds, toolCallResults: this.toolCallResults };
 	}
 
@@ -343,8 +351,11 @@ export abstract class ToolCallingLoop<TOptions extends IToolCallingLoopOptions =
 		let availableTools = await this.getAvailableTools(outputStream, token);
 		const context = this.createPromptContext(availableTools, outputStream);
 		const isContinuation = context.isContinuation || false;
+		// 构造 Prompt
 		const buildPromptResult: IBuildPromptResult = await this.buildPrompt2(context, outputStream, token);
+
 		await this.throwIfCancelled(token);
+
 		this.turn.addReferences(buildPromptResult.references);
 		// Possible the tool call resulted in new tools getting added.
 		availableTools = await this.getAvailableTools(outputStream, token);
@@ -356,13 +367,22 @@ export abstract class ToolCallingLoop<TOptions extends IToolCallingLoopOptions =
 		}
 		const promptTokenLength = await (await this._endpointProvider.getChatEndpoint(this.options.request)).acquireTokenizer().countMessagesTokens(buildPromptResult.messages);
 		await this.throwIfCancelled(token);
+
+		//
 		this._onDidBuildPrompt.fire({ result: buildPromptResult, tools: availableTools, promptTokenLength });
+
 		this._logService.trace('Built prompt');
 
 		// todo@connor4312: can interaction outcome logic be implemented in a more generic way?
 		const interactionOutcomeComputer = new InteractionOutcomeComputer(this.options.interactionContext);
 
 		const that = this;
+
+		/**
+		 *  [ ] 为什么需要这样一个回调呢？
+		 *  在下面直接写也可以实现功能，这里单独生成了一个匿名类来做这件事，是多余的吗？感觉并不是，因为下面的代码已经
+		 * 	很复杂了，如果再增加这部分逻辑，整个代码不够简洁、易懂。
+		 */
 		const responseProcessor = new class implements IResponseProcessor {
 
 			private readonly context = new ResponseProcessorContext(that.options.conversation.sessionId, that.turn, buildPromptResult.messages, interactionOutcomeComputer);
@@ -430,13 +450,18 @@ export abstract class ToolCallingLoop<TOptions extends IToolCallingLoopOptions =
 				parameters: toolInfo.inputSchema,
 			} satisfies OpenAiFunctionDef;
 		}) : undefined;
+
 		let statefulMarker: string | undefined;
 		const toolCalls: IToolCall[] = [];
+
+		//  [ ] N
+		// 发送请求给大模型
 		const fetchResult = await this.fetch({
 			messages: this.applyMessagePostProcessing(buildPromptResult.messages),
 			finishedCb: async (text, _, delta) => {
 				fetchStreamSource?.update(text, delta);
 				if (delta.copilotToolCalls) {
+					//
 					toolCalls.push(...delta.copilotToolCalls.map((call): IToolCall => ({
 						...call,
 						id: this.createInternalToolCallId(call.id),
@@ -476,9 +501,12 @@ export abstract class ToolCallingLoop<TOptions extends IToolCallingLoopOptions =
 		}
 
 		await finalizeStreams(streamParticipants);
+
+		// TODO 这个是干嘛的？
 		this._onDidReceiveResponse.fire({ interactionOutcome: interactionOutcomeComputer, response: fetchResult, toolCalls });
 
 		this.turn.setMetadata(interactionOutcomeComputer.interactionOutcome);
+
 		const toolInputRetry = isToolInputFailure ? (this.toolCallRounds.at(-1)?.toolInputRetry || 0) + 1 : 0;
 		if (fetchResult.type === ChatFetchResponseType.Success) {
 			return {
@@ -619,6 +647,7 @@ export abstract class ToolCallingLoop<TOptions extends IToolCallingLoopOptions =
 		};
 
 		const buildPromptResult = await this.buildPrompt(buildPromptContext, progress, token);
+		// toolCallResult 在这里填充，也就意味着 在这之前已经获取到了 llm 的返回并执行了工具调用
 		for (const metadata of buildPromptResult.metadata.getAll(ToolResultMetadata)) {
 			this.logToolResult(buildPromptContext, metadata);
 			this.toolCallResults[metadata.toolCallId] = metadata.result;

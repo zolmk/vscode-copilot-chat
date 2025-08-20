@@ -66,6 +66,7 @@ export class PromptRenderer<P extends BasePromptElementProps> extends BasePrompt
 		const hydratedInstaService = instantiationService.createChild(new ServiceCollection([IPromptEndpoint, endpoint]));
 		return hydratedInstaService.invokeFunction((accessor) => {
 			const tokenizerProvider = accessor.get(ITokenizerProvider);
+			//[ ] 创建 renderer
 			let renderer = new PromptRenderer(hydratedInstaService, endpoint, ctor, props, tokenizerProvider, accessor.get(IRequestLogger), accessor.get(IAuthenticationService), accessor.get(ILogService));
 
 			const visualizations = RendererVisualizations.getIfVisualizationTestIsRunning();
@@ -103,6 +104,7 @@ export class PromptRenderer<P extends BasePromptElementProps> extends BasePrompt
 	}
 
 	override async render(progress?: Progress<ChatResponsePart> | undefined, token?: CancellationToken | undefined, opts?: Partial<{ trace: boolean }>): Promise<RenderPromptResult> {
+		// [ ] super.render函数是外部包中，看不到源码
 		const result = await super.render(progress, token);
 		const defaultOptions = { trace: true };
 		opts = { ...defaultOptions, ...opts };

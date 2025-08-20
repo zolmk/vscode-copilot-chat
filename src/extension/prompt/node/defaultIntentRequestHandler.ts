@@ -122,7 +122,7 @@ export class DefaultIntentRequestHandler {
 			if (confirmationResult) {
 				return confirmationResult;
 			}
-
+			// [ ] N
 			const resultDetails = await this._requestLogger.captureInvocation(this.request, () => this.runWithToolCalling(intentInvocation));
 
 			let chatResult = resultDetails.chatResult || {};
@@ -327,6 +327,7 @@ export class DefaultIntentRequestHandler {
 		const pauseCtrl = store.add(new PauseController(this.onPaused, this.token));
 
 		try {
+			// [ ] N
 			const result = await loop.run(this.stream, pauseCtrl);
 			if (!result.round.toolCalls.length || result.response.type !== ChatFetchResponseType.Success) {
 				loop.telemetry.sendToolCallingTelemetry(result.toolCallRounds, result.availableTools, this.token.isCancellationRequested ? 'cancelled' : result.response.type);

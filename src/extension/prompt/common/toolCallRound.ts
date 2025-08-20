@@ -12,6 +12,8 @@ import { IToolCall, IToolCallRound } from './intents';
  * Each round contains the assistant's response text, any tool calls it made,
  * and retry information if there were input validation issues.
  */
+
+// 用来保存每一轮的工具调用
 export class ToolCallRound implements IToolCallRound {
 	public summary: string | undefined;
 

@@ -14,6 +14,8 @@ import { IInstantiationService } from '../../../util/vs/platform/instantiation/c
 import { CopilotExtensionApi } from '../../api/vscode/extensionApi';
 import { ContributionCollection, IExtensionContributionFactory } from '../../common/contributions';
 
+import { InstantiationService } from '../../../util/vs/platform/instantiation/common/instantiationService';
+
 // ##################################################################################
 // ###                                                                            ###
 // ###  Shared extension activation code for both web and node.js extension host. ###
@@ -53,9 +55,14 @@ export async function baseActivate(configuration: IExtensionActivationConfigurat
 		l10n.config({ contents: vscodeL10n.bundle });
 	}
 
+	/**
+	 * {@link InstantiationService}
+	 */
+
 	const instantiationService = createInstantiationService(configuration);
 
 	await instantiationService.invokeFunction(async accessor => {
+		// 调用这个accessor可以实例化对应的对象，但是为什么要这么麻烦呢？
 		const envService = accessor.get(IEnvService);
 		const expService = accessor.get(IExperimentationService);
 
@@ -96,7 +103,9 @@ export function createInstantiationService(configuration: IExtensionActivationCo
 	configuration.registerServices(accessor, configuration.context);
 
 	const instantiationService = accessor.seal();
+	// 将所有的service添加到上下文中
 	configuration.context.subscriptions.push(instantiationService);
+
 
 	instantiationService.invokeFunction(accessor => {
 

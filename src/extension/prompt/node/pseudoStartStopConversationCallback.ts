@@ -171,6 +171,7 @@ export class PseudoStopStartResponseProcessor implements IResponseProcessor {
 		} else {
 			if (!this.currentStartStop.start) {
 				return;
+
 			}
 			const startWord = this.checkForKeyWords([this.currentStartStop.start], delta, this.postReportRecordProgress.bind(this));
 			if (startWord) {

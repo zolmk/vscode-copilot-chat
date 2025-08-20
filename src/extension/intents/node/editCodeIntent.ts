@@ -171,6 +171,7 @@ export class EditCodeIntent implements IIntent {
 		}
 
 		({ conversation, request } = await this._handleCodesearch(conversation, request, location, stream, token, documentContext, chatTelemetry));
+
 		return this.instantiationService.createInstance(EditIntentRequestHandler, this, conversation, request, stream, token, documentContext, location, chatTelemetry, this.getIntentHandlerOptions(request), onPaused).getResult();
 	}
 
