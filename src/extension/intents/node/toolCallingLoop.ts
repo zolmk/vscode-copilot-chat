@@ -645,7 +645,7 @@ export abstract class ToolCallingLoop<TOptions extends IToolCallingLoopOptions =
 				stream?.push(obj);
 			}
 		};
-
+		// TODO: 在这里面调用了工具？
 		const buildPromptResult = await this.buildPrompt(buildPromptContext, progress, token);
 		// toolCallResult 在这里填充，也就意味着 在这之前已经获取到了 llm 的返回并执行了工具调用
 		for (const metadata of buildPromptResult.metadata.getAll(ToolResultMetadata)) {

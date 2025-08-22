@@ -664,6 +664,7 @@ class DefaultToolCallingLoop extends ToolCallingLoop<IDefaultToolLoopOptions> {
 	}
 
 	protected override async buildPrompt(buildPromptContext: IBuildPromptContext, progress: Progress<ChatResponseReferencePart | ChatResponseProgressPart>, token: CancellationToken): Promise<IBuildPromptResult> {
+		// [ ] 通过prompt-tsx来构建prompt
 		const buildPromptResult = await this.options.invocation.buildPrompt(buildPromptContext, progress, token);
 		this.fixMessageNames(buildPromptResult.messages);
 		return buildPromptResult;
